@@ -124,3 +124,100 @@ TEST_F(ModifyTests, SeveralPushPop)
     EXPECT_THAT(data_out, ::testing::ElementsAre(2, 1, 0));
 }
 
+TEST(CustomTests, NewPushFreePop)
+{
+    const size_t count = 10;
+    hstack_t stacks[count] = {-1};
+    for (size_t i = 0; i < count; ++i)
+    {
+        stacks[i] = stack_new();
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 0);
+        EXPECT_EQ(stack_size(stacks[i]), 0u);
+        int data_out = 1;
+        EXPECT_EQ(stack_pop(stacks[i], &data_out, sizeof(data_out)), 0u);
+        EXPECT_EQ(data_out, 1);
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 0);
+        EXPECT_EQ(stack_size(stacks[i]), 0u);
+    }
+    for (size_t i = 0; i < count; ++i)
+    {
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 0);
+        EXPECT_EQ(stack_size(stacks[i]), 0u);
+        const int data_in = 1;
+        stack_push(stacks[i], &data_in, sizeof(data_in));
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 0);
+        EXPECT_EQ(stack_size(stacks[i]), 1u);
+    }
+    for (size_t i = 1; i < count; ++i)
+    {
+        stack_free(stacks[i]);
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 1);
+    }
+    for (size_t i = 1; i < count; ++i)
+    {
+        stacks[i] = stack_new();
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 0);
+        EXPECT_EQ(stack_size(stacks[i]), 0u);
+        int data_out = 0;
+        EXPECT_EQ(stack_pop(stacks[i], &data_out, sizeof(data_out)), 0u);
+        EXPECT_EQ(data_out, 0);
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 0);
+        EXPECT_EQ(stack_size(stacks[i]), 0u);
+    }
+    for (size_t i = 0; i < count; ++i)
+    {
+        stack_free(stacks[i]);
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 1);
+    }
+}
+
+TEST(CustomTests, FreeAfterFree)
+{
+    const size_t count = 10;
+    hstack_t stacks[count] = {-1};
+    for (size_t i = 0; i < count; ++i)
+    {
+        stacks[i] = stack_new();
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 0);
+        EXPECT_EQ(stack_size(stacks[i]), 0u);
+    }
+    for (size_t i = 1; i < count; ++i)
+    {
+        stack_free(stacks[i]);
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 1);
+    }
+    for (size_t i = 0; i < count; ++i)
+    {
+        stack_free(stacks[i]);
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 1);
+    }
+    for (size_t i = 0; i < count; ++i)
+    {
+        stack_free(stacks[i]);
+        EXPECT_EQ(stack_valid_handler(stacks[i]), 1);
+    }
+}
+
+TEST(CustomTests, BigSizeStack)
+{
+    const char example = 'a';
+    const size_t limit = 100000;
+    hstack_t stack = stack_new();
+    EXPECT_EQ(stack_valid_handler(stack), 0);
+    for (unsigned int i = 0; i < limit; ++i)
+    {
+        char c = example;
+        stack_push(stack, &c, sizeof(c));
+        EXPECT_EQ(stack_size(stack), i + 1);
+    }
+    for (unsigned int i = 0; i < limit; ++i)
+    {
+        char c = 0;
+        unsigned int size = stack_pop(stack, &c, sizeof(c));
+        EXPECT_EQ(size, sizeof(c));
+        EXPECT_EQ(c, example);
+        EXPECT_EQ(stack_size(stack), limit - (i + 1));
+    }
+    stack_free(stack);
+    EXPECT_EQ(stack_valid_handler(stack), 1);
+}
